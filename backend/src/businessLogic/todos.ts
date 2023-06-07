@@ -35,3 +35,11 @@ export async function createTodo(
 
   return await todosAccess.createToDo(newTodo)
 }
+
+
+export async function getTodosForUser(
+  userId: string
+): Promise<TodoItem[]> {
+
+  return await todosAccess.getToDos(userId)
+}

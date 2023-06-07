@@ -15,7 +15,7 @@ export class TodosAccess{
   constructor(
     private readonly docClient: DocumentClient = createDynamoDBClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
-    // private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX
+    private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX
   ) {}
   
   async createToDo(todoItem: TodoItem): Promise<TodoItem> {
@@ -23,7 +23,7 @@ export class TodosAccess{
       throw new Error('Todos table not found')
     }
 
-    logger.info(`Creating todo item ${todoItem.todoId} for table ${this.todosTable}`)
+    logger.info(`Inserting todo item ${todoItem.todoId} into table ${this.todosTable}`)
   
     await this.docClient.put({
       TableName: this.todosTable,
@@ -31,6 +31,29 @@ export class TodosAccess{
     }).promise()
 
     return todoItem
+  }
+
+  async getToDos(userId: String): Promise<TodoItem[]> {
+    if (!this.todosTable) {
+      throw new Error('Todos table not found')
+    }
+
+    logger.info(`Get todo items from user ${userId}`)
+  
+    const result = await this.docClient.query({
+      TableName: this.todosTable,
+      IndexName: this.todosIndex,
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId
+     }
+    }).promise()
+
+    const toDosItems = result.Items ?? [];;
+
+    logger.info(`Found ${toDosItems.length} todo items from user ${userId}`)
+
+    return toDosItems as TodoItem[]
   }
 }
 

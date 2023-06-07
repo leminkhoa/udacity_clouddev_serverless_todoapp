@@ -51,19 +51,39 @@ functions:
     environment:
       JWKS_URL: https://dev-1a6ao1n5i8qavnvj.us.auth0.com/.well-known/jwks.json
 
-#   # TODO: Configure this function - 
-#   # Provide iamRoleStatements property for performing Actions on DynamoDB
-#   GetTodos:
-#     handler: src/lambda/http/getTodos.handler
-#     events:
-#       - http:
-#           method: get
-#           path: todos
-#           cors: true
-#           authorizer: Auth
 
-  # To refer to an AWS resource defined in the "Resources" section, you can use "Resource: !GetAtt <resource-name>.Arn"
-  # To validate incoming HTTP requests, we have provided the request schemas in function definition below. 
+  GetTodos:
+    handler: src/lambda/http/getTodos.handler
+    events:
+      - http:
+          method: get
+          path: todos
+          cors: true
+          authorizer: Auth
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: !GetAtt TodosTable.Arn
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_CREATED_AT_INDEX}
+      - Effect: Allow
+        Action:
+          - xray:GetSamplingRules
+          - xray:GetSamplingTargets
+          - xray:GetSamplingStatisticSummaries
+          - xray:BatchGetTraces
+          - xray:GetServiceGraph
+          - xray:GetTraceGraph
+          - xray:GetTraceSummaries
+          - xray:GetGroups
+          - xray:GetGroup
+          - xray:PutTraceSegments
+        Resource: '*'
+
 
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
