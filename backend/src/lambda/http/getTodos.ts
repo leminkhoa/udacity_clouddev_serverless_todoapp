@@ -9,7 +9,7 @@ import { getUserId } from '../utils';
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-    console.log('Processing event: ', event)
+    console.log('Processing getTodos event: ', event)
 
     const userId = getUserId(event)
     const todos = await getTodosForUser(userId)
@@ -28,7 +28,7 @@ export const handler = middy(
     }
 
     return {
-      statusCode: 404,
+      statusCode: 204,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true

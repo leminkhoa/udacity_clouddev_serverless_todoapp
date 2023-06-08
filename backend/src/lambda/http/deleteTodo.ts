@@ -4,18 +4,29 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
 import * as middy from 'middy'
 import { cors, httpErrorHandler } from 'middy/middlewares'
 
-import { updateTodo } from '../../businessLogic/todos'
-import { UpdateTodoRequest } from '../../requests/UpdateTodoRequest'
+import { deleteTodo } from '../../businessLogic/todos'
 import { getUserId } from '../utils'
 
 export const handler = middy(
   async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    console.log('Processing deleteTodo event: ', event)
+    
     const todoId = event.pathParameters.todoId
-    const updatedTodo: UpdateTodoRequest = JSON.parse(event.body)
-    // TODO: Update a TODO item with the provided id using values in the "updatedTodo" object
+    console.log('Processing delete for todo Id: ', todoId)
 
+    const userId = getUserId(event)
 
-    return undefined
+    await deleteTodo(userId, todoId)
+    
+    return {
+      statusCode: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Credentials': true
+      },
+      body: ''   /* Return empty body */
+    }
+  }
 )
 
 handler
