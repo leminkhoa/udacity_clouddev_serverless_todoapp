@@ -6,9 +6,10 @@ plugins:
   - serverless-webpack
   - serverless-iam-roles-per-function
   - serverless-plugin-tracing
+  - serverless-aws-documentation
 
-# package:
-#   individually: true
+package:
+  individually: true
 
 custom:
   webpack:
@@ -17,6 +18,14 @@ custom:
     packagerOptions:
       scripts:
         - rm -rf node_modules/aws-sdk
+  
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: ToDoApp API
+        description: Serverless application for creating todo tasks
+
 
 provider:
   name: aws
@@ -58,6 +67,7 @@ provider:
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
+    description: Lambda function to be used for authorizing request token
     tracing: true
     environment:
       JWKS_URL: https://dev-1a6ao1n5i8qavnvj.us.auth0.com/.well-known/jwks.json
@@ -65,6 +75,7 @@ functions:
 
   GetTodos:
     handler: src/lambda/http/getTodos.handler
+    description: Lambda function to be used for API Endpoint to list out todo tasks
     tracing: true
     events:
       - http:
@@ -72,6 +83,9 @@ functions:
           path: todos
           cors: true
           authorizer: Auth
+          documentation:
+            summary: Get todo tasks for current user
+            description: Get todo tasks for current user
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
@@ -99,6 +113,7 @@ functions:
 
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
+    description: Lambda function to be used for API Endpoint to create a new todo task
     tracing: true
     events:
       - http:
@@ -109,6 +124,9 @@ functions:
           request:
             schemas:
               application/json: ${file(models/create-todo-model.json)}
+          documentation:
+            summary: Create a new todo task
+            description: Create a new todo task
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
@@ -129,9 +147,8 @@ functions:
           - xray:PutTraceSegments
         Resource: '*'
 
-
-
   UpdateTodo:
+    description: Lambda function to be used for API Endpoint to update a todo task
     handler: src/lambda/http/updateTodo.handler
     tracing: true
     events:
@@ -143,6 +160,9 @@ functions:
           request:
             schemas:
               application/json: ${file(models/update-todo-model.json)}
+          documentation:
+            summary: Update a todo task
+            description: Update a todo task
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
@@ -166,6 +186,7 @@ functions:
 
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
+    description: Lambda function to be used for API Endpoint to delete a todo task
     tracing: true
     events:
       - http:
@@ -173,6 +194,9 @@ functions:
           path: todos/{todoId}
           cors: true
           authorizer: Auth
+          documentation:
+            summary: Delete a todo task
+            description: Delete a todo task
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
@@ -196,6 +220,7 @@ functions:
 
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
+    description: Lambda function to be used for API Endpoint to generate an attachment URL
     tracing: true
     events:
       - http:
@@ -203,6 +228,9 @@ functions:
           path: todos/{todoId}/attachment
           cors: true
           authorizer: Auth
+          documentation:
+            summary: Generate an attachment url
+            description: Generate an attachment url
     iamRoleStatementsInherit: true
     iamRoleStatements:
       - Effect: Allow
