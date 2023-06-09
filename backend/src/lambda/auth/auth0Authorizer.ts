@@ -53,6 +53,7 @@ export const handler = async (
 
 async function verifyToken(authHeader: string): Promise<JwtPayload> {
   logger.info('Verifying token from header')
+  
   /* Extract and Decode JWT from authorization */
   const token = getToken(authHeader)
   const jwt: Jwt = decode(token, { complete: true }) as Jwt
@@ -67,11 +68,11 @@ async function verifyToken(authHeader: string): Promise<JwtPayload> {
 
   /* Extract public key from signingKey */
   const publicKey = signingKey.x5c[0];
-  logger.info('Found public key!', publicKey)
+  logger.info(`Found public key: ${publicKey}`)
 
   /* Verify and return token */
   const verifiedToken = verify(token, createCert(publicKey), { algorithms: ['RS256'] }) as JwtPayload
-  logger.info('verifiedToken: ', verifiedToken)
+  logger.info(`verifiedToken: ${verifiedToken}`)
   return verifiedToken
 }
 

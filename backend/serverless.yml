@@ -58,6 +58,7 @@ provider:
 functions:
   Auth:
     handler: src/lambda/auth/auth0Authorizer.handler
+    tracing: true
     environment:
       JWKS_URL: https://dev-1a6ao1n5i8qavnvj.us.auth0.com/.well-known/jwks.json
 
@@ -98,6 +99,7 @@ functions:
 
   CreateTodo:
     handler: src/lambda/http/createTodo.handler
+    tracing: true
     events:
       - http:
           method: post
@@ -131,6 +133,7 @@ functions:
 
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
+    tracing: true
     events:
       - http:
           method: patch
@@ -163,6 +166,7 @@ functions:
 
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
+    tracing: true
     events:
       - http:
           method: delete
@@ -192,6 +196,7 @@ functions:
 
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
+    tracing: true
     events:
       - http:
           method: post

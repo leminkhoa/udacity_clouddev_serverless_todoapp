@@ -30,6 +30,8 @@ export class TodosAccess{
       Item: todoItem
     }).promise()
 
+    logger.info(`Inserted item: ${todoItem}`)
+
     return todoItem
   }
 
@@ -110,6 +112,7 @@ export class TodosAccess{
 }
 
 function createDynamoDBClient() {
+  logger.info('Creating DynamoDB Client')
   if (process.env.IS_OFFLINE) {
     console.log('Creating a local DynamoDB instance')
     return new XAWS.DynamoDB.DocumentClient({

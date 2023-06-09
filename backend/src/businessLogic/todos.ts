@@ -29,7 +29,7 @@ export async function createTodo(
     done: false,
     attachmentUrl: attachmentutils.getAttachmentUrl(todoId)
   }
-  logger.info('New todo item: ', newTodo)
+  logger.info(`Start calling createToDo function`)
 
   return await todosAccess.createToDo(newTodo)
 }
@@ -49,7 +49,7 @@ export async function updateTodo(
   todoId: string
 ): Promise<TodoUpdate> {
   
-  logger.info('Start calling updateToDo function with this updated information:', updateTodoRequest)
+  logger.info(`Start calling updateToDo function with this updated information: ${updateTodoRequest}`)
 
   return await todosAccess.updateTodo(updateTodoRequest, userId, todoId)
 }
@@ -77,23 +77,3 @@ export async function createUploadUrl(
   logger.info(`Generated url: ${url}`)
   return url 
 }
-
-// export async function updateAttachmentUrl(
-//   userId: string, 
-//   todoId: string, 
-//   attachmentUrl: string
-// ) {
-//   logger.info(`Updating attachment URL for todo ${todoId}`)
-
-//   await this.docClient.update({
-//     TableName: this.todosTable,
-//     Key: {
-//       userId,
-//       todoId
-//     },
-//     UpdateExpression: 'set attachmentUrl = :attachmentUrl',
-//     ExpressionAttributeValues: {
-//       ':attachmentUrl': attachmentUrl
-//     }
-//   }).promise()
-// }
