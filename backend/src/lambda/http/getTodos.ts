@@ -13,28 +13,18 @@ export const handler = middy(
     const userId = getUserId(event)
     const todos = await getTodosForUser(userId)
 
-    if (todos.length !== 0) {
-      return {
-        statusCode: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Credentials': true
-        },
-        body: JSON.stringify({
-          items: todos
-        })
-      }
-    }
-
     return {
-      statusCode: 204,
+      statusCode: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Credentials': true
       },
-      body: ''
+      body: JSON.stringify(
+        {
+          items: todos
+        }
+      )
     }
-
   }
 )
   
