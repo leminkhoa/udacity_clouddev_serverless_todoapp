@@ -1,0 +1,5 @@
+{
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/lalcebo/json-schema/master/serverless/reference.json": "file:///mnt/d/Study/MOOC/Udacity/Udacity%20-%20Cloud%20Developer/4-Develop-and-Deploy-Serverless-App/Project-Todo-Application/udacity_clouddev_serverless_todoapp/backend/serverless.yml"
+    }
+}

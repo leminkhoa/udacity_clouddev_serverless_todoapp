@@ -54,6 +54,21 @@ export async function updateTodo(
   return await todosAccess.updateTodo(updateTodoRequest, userId, todoId)
 }
 
+export async function updateAttachmentUrl(
+  userId: string,
+  todoId: string, 
+) {
+  logger.info(`Start calling updateAttachmentUrl for todoId: ${todoId}`)
+
+  const attachmentUrl = attachmentutils.getAttachmentUrl(todoId)
+  const thumbnailUrl = attachmentutils.getThumbnailUrl(todoId)
+
+  logger.info(`Updating todo ${todoId}'s attachment URL ${attachmentUrl} into ${thumbnailUrl}`)
+
+  await todosAccess.updateAttachmentUrl(thumbnailUrl, userId, todoId)
+}
+
+
 export async function deleteTodo(
   userId: string,
   todoId: string
@@ -66,8 +81,8 @@ export async function deleteTodo(
 
 
 export async function createUploadUrl(
-  todoId: string,
-  userId: string
+  userId: string,
+  todoId: string
 ) {
   
   logger.info(`Start generating presigned url for user ${userId}`)

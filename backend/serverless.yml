@@ -8,8 +8,8 @@ plugins:
   - serverless-plugin-tracing
   - serverless-aws-documentation
 
-package:
-  individually: true
+# package:
+#   individually: true
 
 custom:
   webpack:
@@ -26,6 +26,8 @@ custom:
         title: ToDoApp API
         description: Serverless application for creating todo tasks
 
+  imagesTopic: imagesTopic-${self:provider.stage}
+  updateAttachmentTopic: updateAttachmentTopic-${self:provider.stage}
 
 provider:
   name: aws
@@ -41,7 +43,10 @@ provider:
   environment:
     TODOS_TABLE: Todos-${self:provider.stage}
     TODOS_CREATED_AT_INDEX: CreatedAtIndex
+    TODOS_DUE_DATE_INDEX: dueDateIndex
+    CONNECTIONS_TABLE: Connections-${self:provider.stage}
     ATTACHMENT_S3_BUCKET: serverless-todo-app-${aws:accountId}-attachments-${self:provider.stage}
+    THUMBNAILS_S3_BUCKET: serverless-todo-app-${aws:accountId}-thumbnails-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
     
 
@@ -71,6 +76,51 @@ functions:
     tracing: true
     environment:
       JWKS_URL: https://dev-1a6ao1n5i8qavnvj.us.auth0.com/.well-known/jwks.json
+
+  ResizeImage:
+    handler: src/lambda/s3/resizeImage.handler
+    description: Lambda function to resize attachment Image to thumbnail Image
+    tracing: true
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.imagesTopic}
+          topicName: ${self:custom.imagesTopic}
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - sns:Subscribe
+        Resource: 
+          Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.imagesTopic}
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+          - s3:GetObject
+        Resource: !GetAtt ThumbnailsBucket.Arn
+      - Effect: Allow
+        Action:
+          - xray:GetSamplingRules
+          - xray:GetSamplingTargets
+          - xray:GetSamplingStatisticSummaries
+          - xray:BatchGetTraces
+          - xray:GetServiceGraph
+          - xray:GetTraceGraph
+          - xray:GetTraceSummaries
+          - xray:GetGroups
+          - xray:GetGroup
+          - xray:PutTraceSegments
+        Resource: '*'    
 
 
   GetTodos:
@@ -146,6 +196,7 @@ functions:
           - xray:GetGroup
           - xray:PutTraceSegments
         Resource: '*'
+
 
   UpdateTodo:
     description: Lambda function to be used for API Endpoint to update a todo task
@@ -239,6 +290,16 @@ functions:
           - dynamodb:PutItem
         Resource: !GetAtt TodosTable.Arn
       - Effect: Allow
+        Action: 
+          - sns:Publish
+        Resource: 
+          Fn::Join:
+            - ':'
+            - - arn:aws:sns
+              - Ref: AWS::Region
+              - Ref: AWS::AccountId
+              - ${self:custom.updateAttachmentTopic}
+      - Effect: Allow
         Action:
           - s3:PutObject
           - s3:GetObject
@@ -257,6 +318,49 @@ functions:
           - xray:PutTraceSegments
         Resource: '*'
 
+  UpdateAttachments:
+    handler: src/lambda/sns/updateAttachment.handler
+    description: Lambda function to update attachmentUrl after resized
+    tracing: true
+    events:
+      - sns:
+          arn:
+            Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.updateAttachmentTopic}
+          topicName: ${self:custom.updateAttachmentTopic}
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action: 
+          - sns:Subscribe
+        Resource: 
+          Fn::Join:
+              - ':'
+              - - arn:aws:sns
+                - Ref: AWS::Region
+                - Ref: AWS::AccountId
+                - ${self:custom.updateAttachmentTopic}
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: !GetAtt TodosTable.Arn
+      - Effect: Allow
+        Action:
+          - xray:GetSamplingRules
+          - xray:GetSamplingTargets
+          - xray:GetSamplingStatisticSummaries
+          - xray:BatchGetTraces
+          - xray:GetServiceGraph
+          - xray:GetTraceGraph
+          - xray:GetTraceSummaries
+          - xray:GetGroups
+          - xray:GetGroup
+          - xray:PutTraceSegments
+        Resource: '*'   
 
 resources:
   Resources:
@@ -281,6 +385,8 @@ resources:
             AttributeType: S
           - AttributeName: createdAt
             AttributeType: S
+          - AttributeName: dueDate
+            AttributeType: S
         KeySchema:
           - AttributeName: userId
             KeyType: HASH
@@ -297,11 +403,24 @@ resources:
                 KeyType: RANGE
             Projection:
               ProjectionType: ALL # What attributes will be copied to an index
+          - IndexName: ${self:provider.environment.TODOS_DUE_DATE_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: dueDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL # What attributes will be copied to an index
 
     AttachmentsBucket:
       Type: AWS::S3::Bucket
+      DependsOn: ImagesTopicPolicy
       Properties:
         BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
+        NotificationConfiguration:
+          TopicConfigurations:
+            - Event: s3:ObjectCreated:Put
+              Topic: !Ref ImagesTopic
         CorsConfiguration:
           CorsRules:
             -
@@ -325,7 +444,8 @@ resources:
           IgnorePublicAcls: false
           RestrictPublicBuckets: false
 
-    BucketPolicy:
+
+    AttachmentBucketPolicy:
       Type: AWS::S3::BucketPolicy
       Properties:
         PolicyDocument:
@@ -338,5 +458,101 @@ resources:
               Action: 
                 - 's3:GetObject'
                 - 's3:PutObject'
-              Resource: 'arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*'
+              Resource: 
+                - 'arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*'
         Bucket: !Ref AttachmentsBucket
+
+
+    ThumbnailsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.THUMBNAILS_S3_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            -
+              AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerPreferred
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false   
+
+
+    ThumbnailsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        PolicyDocument:
+          Id: MyPolicy
+          Version: "2012-10-17"
+          Statement:
+            - Sid: PublicReadForGetBucketObjects
+              Effect: Allow
+              Principal: '*'
+              Action: 
+                - 's3:GetObject'
+                - 's3:PutObject'
+              Resource: 
+                - 'arn:aws:s3:::${self:provider.environment.THUMBNAILS_S3_BUCKET}/*'
+        Bucket: !Ref ThumbnailsBucket
+
+
+    ImagesTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: Image bucket topic
+        TopicName: ${self:custom.imagesTopic}
+
+
+    ImagesTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS: "*"
+              Action: sns:Publish
+              Resource:
+                !Ref ImagesTopic
+              Condition:
+                ArnLike:
+                  AWS:SourceArn: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}
+        Topics:
+          - !Ref ImagesTopic
+
+
+    UpdateAttachmentTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        DisplayName: Image bucket topic
+        TopicName: ${self:custom.updateAttachmentTopic}
+
+
+    UpdateAttachmentTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                AWS: "*"
+              Action: sns:Publish
+              Resource:
+                !Ref UpdateAttachmentTopic
+        Topics:
+          - !Ref UpdateAttachmentTopic

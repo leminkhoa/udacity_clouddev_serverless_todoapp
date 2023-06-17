@@ -7,7 +7,6 @@ import { TodoUpdate }     from '../models/TodoUpdate';
 
 const AWSXRay = require('aws-xray-sdk');
 const XAWS = AWSXRay.captureAWS(AWS)
-
 const logger = createLogger('todosAccess')
 
 // TODO: Implement the dataLayer logic
@@ -15,7 +14,8 @@ export class TodosAccess{
   constructor(
     private readonly docClient: DocumentClient = createDynamoDBClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
-    private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX
+    private readonly todosIndex = process.env.TODOS_CREATED_AT_INDEX,
+    private readonly thumbnailsBucket = process.env.THUMBNAILS_S3_BUCKET
   ) {}
   
   async createToDo(todoItem: TodoItem): Promise<TodoItem> {
@@ -91,6 +91,58 @@ export class TodosAccess{
   }
 
 
+  async updateAttachmentUrl(thumbnailUrl: String, userId: String, todoId: String) {
+    if (!this.todosTable) {
+      throw new Error(`Todos table ${this.todosTable} not found`)
+    }
+
+    logger.info(`Updating item ${todoId}'s attachmentUrl in table ${this.todosTable} for user ${userId}`)
+  
+    // Check if thumbnailUrl exists
+    const s3 = new XAWS.S3()
+
+    const s3Params = {
+      Bucket: this.thumbnailsBucket,
+      Key: todoId
+    }
+
+    let thumbnailExists = false
+    for (let i=0; i < 3; i++) {
+      try {
+        await s3.headObject(s3Params).promise()
+        logger.info("Thumbnail exists")
+        thumbnailExists = true
+        break
+      } catch (err) {
+        logger.info("Thumbnail does not exist. Retrying...")
+        await new Promise(resolve => setTimeout(resolve, 1000))
+      }
+    }
+
+    if (!thumbnailExists) {
+      throw new Error(`Thumbnail does not exist!`)
+    }
+
+    // Updating DynamoDB
+    await this.docClient.update({
+      TableName: this.todosTable,
+      Key: {
+        userId,
+        todoId
+      },
+      UpdateExpression: 'set #attachmentUrl = :thumbnailUrl',
+      ExpressionAttributeValues: {
+        ':thumbnailUrl': thumbnailUrl
+      },
+      ExpressionAttributeNames: {
+        '#attachmentUrl': 'attachmentUrl'
+      }
+    }).promise()
+
+    logger.info(`updated attachmentUrl`)
+  }
+
+
   async deleteTodo(userId: String, todoId: String) {
     if (!this.todosTable) {
       throw new Error(`Todos table ${this.todosTable} not found`)
@@ -111,7 +163,7 @@ export class TodosAccess{
   }
 }
 
-function createDynamoDBClient() {
+export function createDynamoDBClient() {
   logger.info('Creating DynamoDB Client')
   if (process.env.IS_OFFLINE) {
     console.log('Creating a local DynamoDB instance')
