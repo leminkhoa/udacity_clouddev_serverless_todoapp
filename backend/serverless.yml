@@ -8,8 +8,10 @@ plugins:
   - serverless-plugin-tracing
   - serverless-aws-documentation
 
-# package:
-#   individually: true
+package:
+  individually: true
+  exclude:
+    - tests/**
 
 custom:
   webpack:
@@ -319,7 +321,7 @@ functions:
         Resource: '*'
 
   UpdateAttachments:
-    handler: src/lambda/sns/updateAttachment.handler
+    handler: src/lambda/dynamodb/updateAttachment.handler
     description: Lambda function to update attachmentUrl after resized
     tracing: true
     events:
